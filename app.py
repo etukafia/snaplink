@@ -248,11 +248,11 @@ def download():
         format_str = "bestaudio/best"
     elif platform == "youtube":
         if quality == "720":
-            format_str = "bestvideo[height<=720]+bestaudio/bestvideo[height<=720]/best[height<=720]/best"
+            format_str = "(bestvideo[height<=720][vcodec^=avc1]+bestaudio[acodec^=mp4a])/(bestvideo[height<=720]+bestaudio)/best[height<=720]/best"
         elif quality == "480":
-            format_str = "bestvideo[height<=480]+bestaudio/bestvideo[height<=480]/best[height<=480]/best"
+            format_str = "(bestvideo[height<=480][vcodec^=avc1]+bestaudio[acodec^=mp4a])/(bestvideo[height<=480]+bestaudio)/best[height<=480]/best"
         else:
-            format_str = "bestvideo+bestaudio/bestvideo/best"
+            format_str = "(bestvideo[vcodec^=avc1]+bestaudio[acodec^=mp4a])/(bestvideo+bestaudio)/best"
     else:
         if quality == "720":
             format_str = "bestvideo[height<=720]+bestaudio/best[height<=720]/best"
@@ -267,14 +267,21 @@ def download():
         "noplaylist": True,
         "quiet": True,
         "no_warnings": True,
-        "merge_output_format": "mp4",
         "socket_timeout": 30,
         "retries": 3,
     }
 
-    # Use cookies for YouTube to bypass bot detection
-    if platform == "youtube" and COOKIES_FILE and os.path.exists(COOKIES_FILE):
-        ydl_opts["cookiefile"] = COOKIES_FILE
+    # YouTube-specific settings
+    if platform == "youtube":
+        ydl_opts["merge_output_format"] = "mp4"
+        ydl_opts["postprocessors"] = [{
+            "key": "FFmpegVideoConvertor",
+            "preferedformat": "mp4",
+        }]
+        if COOKIES_FILE and os.path.exists(COOKIES_FILE):
+            ydl_opts["cookiefile"] = COOKIES_FILE
+    else:
+        ydl_opts["merge_output_format"] = "mp4"
 
     if quality == "audio":
         ydl_opts["postprocessors"] = [{
