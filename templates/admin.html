@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}SnapLink — Admin{% endblock %}
+{% block extra_style %}
+<style>
+body{display:flex;flex-direction:column;align-items:center;padding:0 1rem 5rem;}
+.topbar{width:100%;max-width:640px;display:flex;align-items:center;justify-content:space-between;padding:1.2rem 0;position:relative;z-index:1;}
+.brand{font-family:'Syne',sans-serif;font-size:1.05rem;font-weight:800;letter-spacing:-0.02em;}
+.brand span{color:var(--accent);}
+.wrapper{width:100%;max-width:640px;display:flex;flex-direction:column;gap:1.5rem;position:relative;z-index:1;}
+h2{font-family:'Syne',sans-serif;font-size:1.5rem;font-weight:800;letter-spacing:-0.02em;margin-bottom:0.25rem;}
+.page-sub{font-size:0.85rem;color:var(--muted);margin-bottom:1.25rem;}
+.section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:0.85rem;}
+.section-title{font-size:0.72rem;font-weight:500;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;}
+.count-pill{background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:0.15rem 0.55rem;font-size:0.72rem;color:var(--muted);}
+.count-pill.has-pending{background:rgba(255,180,50,0.1);border-color:rgba(255,180,50,0.3);color:#ffb432;}
+.empty-state{text-align:center;padding:2rem 1rem;color:var(--muted);font-size:0.875rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);border-style:dashed;}
+.user-row{display:flex;align-items:center;gap:0.75rem;padding:0.9rem 1rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:0.4rem;}
+.user-row:last-child{margin-bottom:0;}
+.avatar{width:34px;height:34px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:0.8rem;font-weight:600;color:var(--muted);flex-shrink:0;text-transform:uppercase;}
+.user-info{flex:1;min-width:0;}
+.user-name{font-size:0.9rem;font-weight:500;color:var(--text);display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.user-meta{font-size:0.75rem;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.user-actions{display:flex;align-items:center;gap:0.4rem;flex-shrink:0;}
+.dl-count{font-size:0.72rem;color:var(--muted2);white-space:nowrap;}
+.note-text{font-size:0.78rem;color:var(--muted);font-style:italic;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.flash-list{display:flex;flex-direction:column;gap:0.4rem;}
+@media(max-width:480px){.user-row{flex-wrap:wrap;}.user-actions{width:100%;justify-content:flex-end;}}
+</style>
+{% endblock %}
+{% block body %}
+<div class="topbar">
+  <span class="brand">Snap<span>Link</span> <span style="font-weight:400;color:var(--muted);font-size:0.85rem;font-family:'DM Sans',sans-serif;">/ admin</span></span>
+  <div style="display:flex;align-items:center;gap:0.5rem;">
+    <a href="/" class="btn btn-ghost btn-sm">← App</a>
+    <a href="/logout" class="btn btn-ghost btn-sm">Log out</a>
+  </div>
+</div>
+
+<div class="wrapper">
+  <div>
+    <h2>Admin Panel</h2>
+    <p class="page-sub">Manage who can access SnapLink.</p>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <div class="flash-list">
+    {% for category, message in messages %}
+    <div class="alert alert-{% if category == 'success' %}success{% elif category == 'error' %}error{% else %}info{% endif %}">
+      {{ message }}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endwith %}
+
+  <!-- Pending requests -->
+  <div>
+    <div class="section-head">
+      <span class="section-title">Pending requests</span>
+      <span class="count-pill {% if pending %}has-pending{% endif %}">{{ pending|length }}</span>
+    </div>
+    {% if not pending %}
+    <div class="empty-state">No pending requests right now.</div>
+    {% else %}
+    <div>
+      {% for user in pending %}
+      <div class="user-row">
+        <div class="avatar">{{ user.username[0] }}</div>
+        <div class="user-info">
+          <div class="user-name">
+            {{ user.username }}
+            <span class="badge badge-pending">pending</span>
+          </div>
+          <div class="user-meta">Requested {{ user.requested_at[:10] }}</div>
+          {% if user.note %}
+          <div class="note-text">"{{ user.note }}"</div>
+          {% endif %}
+        </div>
+        <div class="user-actions">
+          <form method="POST" action="/admin/approve/{{ user.username }}" style="display:inline;">
+            <button type="submit" class="btn btn-success btn-sm">Approve</button>
+          </form>
+          <form method="POST" action="/admin/reject/{{ user.username }}" style="display:inline;" onsubmit="return confirm('Reject {{ user.username }}?')">
+            <button type="submit" class="btn btn-danger btn-sm">Reject</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Active users -->
+  <div>
+    <div class="section-head">
+      <span class="section-title">Active users</span>
+      <span class="count-pill">{{ users|length }}</span>
+    </div>
+    <div>
+      {% for user in users %}
+      <div class="user-row">
+        <div class="avatar" style="{% if user.role == 'admin' %}background:var(--accent-dim);border-color:var(--accent-border);color:var(--accent);{% endif %}">{{ user.username[0] }}</div>
+        <div class="user-info">
+          <div class="user-name">
+            {{ user.username }}
+            <span class="badge {% if user.role == 'admin' %}badge-admin{% else %}badge-user{% endif %}">{{ user.role }}</span>
+          </div>
+          <div class="user-meta">
+            Joined {{ user.created_at[:10] }}
+            &nbsp;·&nbsp;
+            <span class="dl-count">{{ user.download_count or 0 }} download{% if user.download_count != 1 %}s{% endif %}</span>
+          </div>
+        </div>
+        {% if user.username != admin_username %}
+        <div class="user-actions">
+          {% if user.role != 'admin' %}
+          <form method="POST" action="/admin/promote/{{ user.username }}" style="display:inline;" onsubmit="return confirm('Promote {{ user.username }} to admin?')">
+            <button type="submit" class="btn btn-ghost btn-sm">Make admin</button>
+          </form>
+          {% endif %}
+          <form method="POST" action="/admin/remove/{{ user.username }}" style="display:inline;" onsubmit="return confirm('Remove {{ user.username }}? This cannot be undone.')">
+            <button type="submit" class="btn btn-danger btn-sm">Remove</button>
+          </form>
+        </div>
+        {% else %}
+        <span style="font-size:0.75rem;color:var(--muted2);padding:0 0.25rem;">you</span>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

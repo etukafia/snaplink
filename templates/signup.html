@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}SnapLink — Request Access{% endblock %}
+{% block extra_style %}
+<style>
+body{display:flex;align-items:center;justify-content:center;padding:1.5rem 1rem;min-height:100vh;}
+.auth-card{position:relative;z-index:1;width:100%;max-width:400px;display:flex;flex-direction:column;gap:1.5rem;}
+.logo{text-align:center;}
+.logo-mark{display:inline-flex;align-items:center;justify-content:center;width:50px;height:50px;border-radius:14px;background:var(--accent-dim);border:1px solid var(--accent-border);margin-bottom:0.8rem;}
+.logo-mark svg{width:22px;height:22px;fill:var(--accent);}
+h1{font-family:'Syne',sans-serif;font-size:1.9rem;font-weight:800;letter-spacing:-0.03em;text-align:center;}
+h1 span{color:var(--accent);}
+.sub{font-size:0.85rem;color:var(--muted);text-align:center;}
+.form-fields{display:flex;flex-direction:column;gap:1rem;}
+.field{display:flex;flex-direction:column;gap:0.45rem;}
+.pw-toggle{background:none;border:none;cursor:pointer;color:var(--muted);font-size:0.78rem;padding:0 0 0 8px;font-family:'DM Sans',sans-serif;}
+.pw-toggle:hover{color:var(--text);}
+.hint{font-size:0.75rem;color:var(--muted2);margin-top:0.2rem;}
+.back-link{font-size:0.82rem;color:var(--muted);text-align:center;}
+.back-link a{color:var(--accent);font-weight:500;}
+.back-link a:hover{text-decoration:underline;}
+.info-box{display:flex;align-items:flex-start;gap:0.6rem;padding:0.75rem 1rem;background:var(--info-dim);border:1px solid var(--info-border);border-radius:var(--radius-sm);font-size:0.82rem;color:var(--info);line-height:1.5;}
+</style>
+{% endblock %}
+{% block body %}
+<div class="auth-card">
+  <div class="logo">
+    <div class="logo-mark">
+      <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z"/></svg>
+    </div>
+    <h1>Snap<span>Link</span></h1>
+    <p class="sub">Request access from the admin</p>
+  </div>
+
+  <div class="info-box">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;margin-top:1px"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+    SnapLink is invite-only. Submit your details and the admin will approve your account.
+  </div>
+
+  {% if error %}
+  <div class="alert alert-error">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;margin-top:2px"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+    {{ error }}
+  </div>
+  {% endif %}
+
+  {% if success %}
+  <div class="alert alert-success">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;margin-top:2px"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
+    {{ success }}
+  </div>
+  {% endif %}
+
+  {% if not success %}
+  <div class="card">
+    <form method="POST" action="/signup">
+      <div class="form-fields">
+        <div class="field">
+          <label class="field-label" for="username">Choose a username</label>
+          <div class="input-wrap">
+            <input type="text" id="username" name="username" placeholder="e.g. john_doe" autocomplete="username" required>
+          </div>
+          <span class="hint">Letters, numbers, underscores only. Min 3 characters.</span>
+        </div>
+        <div class="field">
+          <label class="field-label" for="password">Password</label>
+          <div class="input-wrap">
+            <input type="password" id="password" name="password" placeholder="Min 6 characters" autocomplete="new-password" required>
+            <button type="button" class="pw-toggle" onclick="togglePw('password',this)">show</button>
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-label" for="confirm">Confirm password</label>
+          <div class="input-wrap">
+            <input type="password" id="confirm" name="confirm" placeholder="Repeat password" autocomplete="new-password" required>
+            <button type="button" class="pw-toggle" onclick="togglePw('confirm',this)">show</button>
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-label" for="note">Note to admin <span style="color:var(--muted2);font-size:0.7rem;">(optional)</span></label>
+          <div class="input-wrap" style="align-items:flex-start;">
+            <textarea id="note" name="note" placeholder="e.g. I'm John, a friend of Mike's" rows="2" style="flex:1;background:transparent;border:none;outline:none;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.9rem;padding:0.65rem 0;resize:none;"></textarea>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%;margin-top:0.25rem;">Submit Request</button>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+
+  <p class="back-link"><a href="/login">← Back to sign in</a></p>
+</div>
+<script>
+function togglePw(id,btn){
+  const i=document.getElementById(id);
+  if(i.type==='password'){i.type='text';btn.textContent='hide';}
+  else{i.type='password';btn.textContent='show';}
+}
+</script>
+{% endblock %}

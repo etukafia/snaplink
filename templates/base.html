@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}SnapLink{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0a0f;--surface:#13131a;--surface2:#1c1c27;--surface3:#22222f;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);
+  --text:#f0eff5;--muted:#7c7b8a;--muted2:#55546a;
+  --accent:#c8f73a;--accent-dim:rgba(200,247,58,0.10);--accent-border:rgba(200,247,58,0.28);
+  --danger:#ff5b5b;--danger-dim:rgba(255,91,91,0.10);--danger-border:rgba(255,91,91,0.25);
+  --success:#3affc8;--success-dim:rgba(58,255,200,0.10);--success-border:rgba(58,255,200,0.25);
+  --info-dim:rgba(100,160,255,0.10);--info-border:rgba(100,160,255,0.25);--info:#80aaff;
+  --radius:16px;--radius-sm:10px;--radius-xs:7px;
+}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+a{color:inherit;text-decoration:none;}
+.glow{position:fixed;top:-220px;left:50%;transform:translateX(-50%);width:700px;height:440px;pointer-events:none;z-index:0;background:radial-gradient(ellipse,rgba(200,247,58,0.055) 0%,transparent 70%);}
+.field-label{display:block;font-size:0.72rem;font-weight:500;color:var(--muted);letter-spacing:0.07em;text-transform:uppercase;margin-bottom:0.45rem;}
+.input-wrap{display:flex;align-items:center;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:0 0.75rem;transition:border-color 0.2s,box-shadow 0.2s;}
+.input-wrap:focus-within{border-color:var(--accent-border);box-shadow:0 0 0 3px rgba(200,247,58,0.06);}
+.input-wrap input,.input-wrap select{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.95rem;padding:0.72rem 0;}
+.input-wrap input::placeholder,.input-wrap select::placeholder{color:var(--muted);}
+.input-wrap select option{background:var(--surface2);}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:0.7rem 1.2rem;font-family:'DM Sans',sans-serif;font-size:0.9rem;font-weight:500;border-radius:var(--radius-sm);cursor:pointer;transition:opacity 0.15s,transform 0.15s,background 0.15s;border:none;}
+.btn:hover{opacity:0.88;transform:translateY(-1px);}
+.btn:active{transform:scale(0.985);}
+.btn:disabled{opacity:0.35;cursor:not-allowed;transform:none;}
+.btn-primary{background:var(--accent);color:#0a0a0f;font-family:'Syne',sans-serif;font-weight:700;font-size:1rem;}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);}
+.btn-ghost:hover{color:var(--text);border-color:var(--border2);}
+.btn-danger{background:var(--danger-dim);color:var(--danger);border:1px solid var(--danger-border);}
+.btn-success{background:var(--success-dim);color:var(--success);border:1px solid var(--success-border);}
+.btn-sm{padding:0.38rem 0.75rem;font-size:0.8rem;border-radius:var(--radius-xs);}
+.alert{display:flex;align-items:flex-start;gap:0.6rem;padding:0.75rem 1rem;border-radius:var(--radius-sm);font-size:0.875rem;line-height:1.5;margin-bottom:1rem;}
+.alert-error{background:var(--danger-dim);border:1px solid var(--danger-border);color:#ff8f8f;}
+.alert-success{background:var(--success-dim);border:1px solid var(--success-border);color:var(--success);}
+.alert-info{background:var(--info-dim);border:1px solid var(--info-border);color:var(--info);}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.5rem;}
+.badge{display:inline-flex;align-items:center;padding:0.2rem 0.55rem;border-radius:20px;font-size:0.7rem;font-weight:500;letter-spacing:0.03em;}
+.badge-admin{background:var(--accent-dim);border:1px solid var(--accent-border);color:var(--accent);}
+.badge-user{background:var(--surface2);border:1px solid var(--border);color:var(--muted);}
+.badge-pending{background:rgba(255,180,50,0.1);border:1px solid rgba(255,180,50,0.25);color:#ffb432;}
+</style>
+{% block extra_style %}{% endblock %}
+</head>
+<body>
+<div class="glow"></div>
+{% block body %}{% endblock %}
+</body>
+</html>

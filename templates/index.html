@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block title %}SnapLink — Download{% endblock %}
+{% block extra_style %}
+<style>
+body{display:flex;flex-direction:column;align-items:center;padding:0 1rem 5rem;}
+.topbar{width:100%;max-width:540px;display:flex;align-items:center;justify-content:space-between;padding:1.2rem 0;position:relative;z-index:1;}
+.brand{font-family:'Syne',sans-serif;font-size:1.05rem;font-weight:800;letter-spacing:-0.02em;}
+.brand span{color:var(--accent);}
+.topbar-right{display:flex;align-items:center;gap:0.5rem;}
+.user-pill{display:flex;align-items:center;gap:6px;padding:0.3rem 0.65rem;background:var(--surface);border:1px solid var(--border);border-radius:20px;font-size:0.78rem;color:var(--muted);}
+.user-pill strong{color:var(--text);font-weight:500;}
+.wrapper{width:100%;max-width:540px;display:flex;flex-direction:column;gap:1.25rem;position:relative;z-index:1;}
+header{text-align:center;padding:0.5rem 0 0.25rem;}
+.logo-mark{display:inline-flex;align-items:center;justify-content:center;width:52px;height:52px;border-radius:14px;background:var(--accent-dim);border:1px solid var(--accent-border);margin-bottom:0.8rem;}
+.logo-mark svg{width:24px;height:24px;fill:var(--accent);}
+h1{font-family:'Syne',sans-serif;font-size:clamp(1.9rem,7vw,2.6rem);font-weight:800;letter-spacing:-0.03em;line-height:1.1;margin-bottom:0.4rem;}
+h1 span{color:var(--accent);}
+.tagline{font-size:0.88rem;color:var(--muted);}
+.input-row{display:flex;align-items:center;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:0.25rem 0.25rem 0.25rem 0.75rem;transition:border-color 0.2s,box-shadow 0.2s;margin-bottom:0.7rem;}
+.input-row:focus-within{border-color:var(--accent-border);box-shadow:0 0 0 3px rgba(200,247,58,0.06);}
+.input-row input{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.95rem;padding:0.6rem 0;min-width:0;}
+.input-row input::placeholder{color:var(--muted);}
+.clear-btn{background:none;border:none;cursor:pointer;color:var(--muted);padding:4px 10px;font-size:1.1rem;opacity:0;pointer-events:none;transition:opacity 0.15s;}
+.clear-btn.visible{opacity:1;pointer-events:auto;}
+.clear-btn:hover{color:var(--text);}
+.detect-badge{display:flex;align-items:center;gap:7px;background:var(--accent-dim);border:1px solid var(--accent-border);border-radius:8px;padding:0.45rem 0.75rem;font-size:0.82rem;color:var(--accent);font-weight:500;margin-bottom:0.7rem;opacity:0;transform:translateY(-4px);transition:opacity 0.22s,transform 0.22s;}
+.detect-badge.show{opacity:1;transform:translateY(0);}
+.q-label{font-size:0.72rem;font-weight:500;color:var(--muted);letter-spacing:0.07em;text-transform:uppercase;margin-bottom:0.4rem;display:block;}
+.quality-row{display:grid;grid-template-columns:repeat(4,1fr);gap:0.4rem;margin-bottom:1rem;}
+.q-btn{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.5rem 0.2rem;font-size:0.78rem;color:var(--muted);cursor:pointer;text-align:center;transition:all 0.15s;font-family:'DM Sans',sans-serif;}
+.q-btn:hover{border-color:var(--border2);color:var(--text);}
+.q-btn.active{background:var(--accent-dim);border-color:var(--accent-border);color:var(--accent);font-weight:500;}
+.dl-btn{width:100%;padding:0.9rem;background:var(--accent);color:#0a0a0f;font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;border:none;border-radius:var(--radius-sm);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:transform 0.15s,opacity 0.15s;margin-top:0.25rem;}
+.dl-btn:hover{opacity:0.9;transform:translateY(-1px);}
+.dl-btn:active{transform:scale(0.99);}
+.dl-btn:disabled{opacity:0.35;cursor:not-allowed;transform:none;}
+.dl-btn svg{width:17px;height:17px;fill:currentColor;flex-shrink:0;}
+.status-box{border-radius:var(--radius-sm);padding:0.8rem 1rem;font-size:0.875rem;display:none;align-items:flex-start;gap:0.6rem;line-height:1.5;}
+.status-box.error{display:flex;background:var(--danger-dim);border:1px solid var(--danger-border);color:#ff8f8f;}
+.status-box.loading{display:flex;background:var(--accent-dim);border:1px solid var(--accent-border);color:var(--accent);}
+.status-box.success{display:flex;background:var(--success-dim);border:1px solid var(--success-border);color:var(--success);}
+.spinner{width:15px;height:15px;border:2px solid rgba(200,247,58,0.3);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;flex-shrink:0;margin-top:2px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.section-title{font-size:0.72rem;font-weight:500;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.65rem;}
+.platforms-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:0.4rem;}
+.p-chip{display:flex;flex-direction:column;align-items:center;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:0.6rem 0.25rem;font-size:0.69rem;color:var(--muted);font-weight:500;transition:all 0.18s;}
+.p-chip.active{background:var(--accent-dim);border-color:var(--accent-border);color:var(--accent);}
+.p-chip .icon{font-size:1.2rem;}
+.note{font-size:0.75rem;color:var(--muted);text-align:center;line-height:1.7;}
+footer{margin-top:2rem;font-size:0.72rem;color:rgba(124,123,138,0.35);text-align:center;position:relative;z-index:1;}
+@media(max-width:380px){.platforms-grid{grid-template-columns:repeat(3,1fr)}.quality-row{grid-template-columns:repeat(2,1fr)}}
+</style>
+{% endblock %}
+{% block body %}
+<div class="topbar">
+  <span class="brand">Snap<span>Link</span></span>
+  <div class="topbar-right">
+    {% if role == 'admin' %}
+    <a href="/admin" class="btn btn-ghost btn-sm">Admin</a>
+    {% endif %}
+    <div class="user-pill">👤 <strong>{{ username }}</strong></div>
+    <a href="/logout" class="btn btn-ghost btn-sm">Log out</a>
+  </div>
+</div>
+
+<div class="wrapper">
+  <header>
+    <div class="logo-mark">
+      <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z"/></svg>
+    </div>
+    <h1>Snap<span>Link</span></h1>
+    <p class="tagline">Paste a link. Download safely. No third parties.</p>
+  </header>
+
+  <div class="card">
+    <span class="field-label">Video URL</span>
+    <div class="input-row">
+      <input type="url" id="urlInput" placeholder="https://www.tiktok.com/..." autocomplete="off" spellcheck="false">
+      <button class="clear-btn" id="clearBtn" aria-label="Clear">&#215;</button>
+    </div>
+    <div class="detect-badge" id="detectBadge">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
+      <span id="detectText">Platform detected</span>
+    </div>
+    <span class="q-label">Quality</span>
+    <div class="quality-row">
+      <button class="q-btn active" data-q="best">Best</button>
+      <button class="q-btn" data-q="720">720p</button>
+      <button class="q-btn" data-q="480">480p</button>
+      <button class="q-btn" data-q="audio">Audio</button>
+    </div>
+    <div class="status-box" id="statusBox">
+      <span id="statusIcon"></span>
+      <span id="statusMsg"></span>
+    </div>
+    <button class="dl-btn" id="dlBtn" disabled>
+      <svg viewBox="0 0 24 24"><path d="M5 20h14v-2H5v2zm7-18v10.59l-3.29-3.3-1.42 1.42L12 15.41l4.71-4.7-1.42-1.42L13 12.59V2h-2z"/></svg>
+      Download Video
+    </button>
+  </div>
+
+  <div>
+    <p class="section-title">Supported platforms</p>
+    <div class="platforms-grid">
+      <div class="p-chip" data-key="tiktok"><span class="icon">🎵</span>TikTok</div>
+      <div class="p-chip" data-key="youtube"><span class="icon">▶️</span>YouTube</div>
+      <div class="p-chip" data-key="instagram"><span class="icon">📸</span>Instagram</div>
+      <div class="p-chip" data-key="twitter"><span class="icon">🐦</span>Twitter/X</div>
+      <div class="p-chip" data-key="facebook"><span class="icon">👤</span>Facebook</div>
+    </div>
+  </div>
+
+  <p class="note">All downloads run on your own server — no third-party sites, no malware, no tracking.</p>
+</div>
+<footer>SnapLink &mdash; self-hosted &amp; private</footer>
+
+<script>
+const PLATFORMS={
+  tiktok:{name:'TikTok',rx:[/tiktok\.com/i,/vm\.tiktok\.com/i]},
+  youtube:{name:'YouTube',rx:[/youtube\.com/i,/youtu\.be/i]},
+  instagram:{name:'Instagram',rx:[/instagram\.com/i]},
+  twitter:{name:'Twitter / X',rx:[/twitter\.com/i,/x\.com/i]},
+  facebook:{name:'Facebook',rx:[/facebook\.com/i,/fb\.watch/i]},
+};
+const urlInput=document.getElementById('urlInput'),clearBtn=document.getElementById('clearBtn'),
+  badge=document.getElementById('detectBadge'),detectText=document.getElementById('detectText'),
+  dlBtn=document.getElementById('dlBtn'),statusBox=document.getElementById('statusBox'),
+  statusIcon=document.getElementById('statusIcon'),statusMsg=document.getElementById('statusMsg'),
+  chips=document.querySelectorAll('.p-chip'),qBtns=document.querySelectorAll('.q-btn');
+let detected=null,selectedQ='best',downloading=false;
+
+qBtns.forEach(b=>b.addEventListener('click',()=>{qBtns.forEach(x=>x.classList.remove('active'));b.classList.add('active');selectedQ=b.dataset.q;}));
+
+function detect(url){for(const[k,p]of Object.entries(PLATFORMS))if(p.rx.some(rx=>rx.test(url)))return k;return null;}
+
+function setStatus(type,msg){
+  statusBox.className='status-box'+(type?' '+type:'');
+  statusMsg.textContent=msg;
+  if(type==='loading')statusIcon.innerHTML='<div class="spinner"></div>';
+  else if(type==='error')statusIcon.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;margin-top:2px"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>';
+  else if(type==='success')statusIcon.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;margin-top:2px"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
+  else statusIcon.innerHTML='';
+}
+
+function update(){
+  const val=urlInput.value.trim();
+  clearBtn.classList.toggle('visible',val.length>0);
+  badge.classList.remove('show');chips.forEach(c=>c.classList.remove('active'));
+  dlBtn.disabled=true;detected=null;
+  if(!val){setStatus('','');return;}
+  const key=detect(val);
+  if(key){
+    detected=key;detectText.textContent=PLATFORMS[key].name+' detected';badge.classList.add('show');
+    dlBtn.disabled=false;chips.forEach(c=>{if(c.dataset.key===key)c.classList.add('active');});setStatus('','');
+  } else if(val.length>10){setStatus('error','Platform not recognised — try a TikTok, YouTube or Instagram link.');}
+}
+
+urlInput.addEventListener('input',update);
+urlInput.addEventListener('paste',()=>setTimeout(update,10));
+clearBtn.addEventListener('click',()=>{urlInput.value='';update();urlInput.focus();});
+urlInput.addEventListener('keydown',e=>{if(e.key==='Enter'&&!dlBtn.disabled)dlBtn.click();});
+
+dlBtn.addEventListener('click',async()=>{
+  if(downloading||!detected)return;
+  const url=urlInput.value.trim();
+  downloading=true;dlBtn.disabled=true;
+  dlBtn.innerHTML='<div class="spinner" style="border-color:rgba(10,10,15,0.25);border-top-color:#0a0a0f"></div> Downloading…';
+  setStatus('loading','Fetching video — this may take a moment…');
+  try{
+    const resp=await fetch('/api/download',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url,quality:selectedQ})});
+    if(!resp.ok){const err=await resp.json();setStatus('error',err.error||'Download failed. Please try again.');}
+    else{
+      const blob=await resp.blob();
+      const cd=resp.headers.get('Content-Disposition')||'';
+      const match=cd.match(/filename="?([^"]+)"?/);
+      const filename=match?match[1]:'video.mp4';
+      const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;a.click();URL.revokeObjectURL(a.href);
+      setStatus('success','Downloaded successfully — check your downloads folder.');
+    }
+  }catch(e){setStatus('error','Network error. Make sure the server is running.');}
+  finally{
+    downloading=false;dlBtn.disabled=false;
+    dlBtn.innerHTML='<svg viewBox="0 0 24 24" fill="currentColor" style="width:17px;height:17px;flex-shrink:0"><path d="M5 20h14v-2H5v2zm7-18v10.59l-3.29-3.3-1.42 1.42L12 15.41l4.71-4.7-1.42-1.42L13 12.59V2h-2z"/></svg> Download Video';
+  }
+});
+</script>
+{% endblock %}
