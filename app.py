@@ -168,7 +168,6 @@ def admin():
     db = load_db()
     users   = list(db["users"].values())
     pending = list(db["pending"].values())
-    flashes = {"messages": [{"cat": c, "text": t} for c, t in (session.pop("_flashes", None) or [])]}
     return render_template("admin.html", users=users, pending=pending,
                            admin_username=session.get("username"))
 
@@ -232,16 +231,21 @@ def download():
     if not url:
         return jsonify({"error": "No URL provided."}), 400
 
-    job_id       = str(uuid.uuid4())[:8]
+    platform = detect_platform(url)
+    job_id   = str(uuid.uuid4())[:8]
     out_template = os.path.join(DOWNLOAD_DIR, f"{job_id}_%(title).60s.%(ext)s")
 
-    format_str = "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best"
-    if quality == "720":
-        format_str = "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best[height<=720]"
+    # TikTok needs a more flexible format string
+    if platform == "tiktok":
+        format_str = "bestvideo+bestaudio/best"
+    elif quality == "720":
+        format_str = "bestvideo[height<=720]+bestaudio/best[height<=720]/best"
     elif quality == "480":
-        format_str = "bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480][ext=mp4]/best[height<=480]"
+        format_str = "bestvideo[height<=480]+bestaudio/best[height<=480]/best"
     elif quality == "audio":
         format_str = "bestaudio/best"
+    else:
+        format_str = "bestvideo+bestaudio/best"
 
     ydl_opts = {
         "format": format_str,
@@ -253,6 +257,7 @@ def download():
         "socket_timeout": 30,
         "retries": 3,
     }
+
     if quality == "audio":
         ydl_opts["postprocessors"] = [{
             "key": "FFmpegExtractAudio",
@@ -299,6 +304,8 @@ def download():
             return jsonify({"error": "This video is private or requires login."}), 400
         if "Unsupported URL" in msg:
             return jsonify({"error": "This URL is not supported."}), 400
+        if "not available" in msg.lower() or "format" in msg.lower():
+            return jsonify({"error": "This format is not available for that video. Try a different quality setting."}), 400
         return jsonify({"error": f"Download failed: {msg[:200]}"}), 500
     except Exception as e:
         return jsonify({"error": f"Unexpected error: {str(e)[:200]}"}), 500
