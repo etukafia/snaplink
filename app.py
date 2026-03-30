@@ -22,6 +22,14 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "changeme123")
 
+# Write YouTube cookies from environment variable to a temp file
+COOKIES_FILE = None
+youtube_cookies = os.environ.get("YOUTUBE_COOKIES", "").strip()
+if youtube_cookies:
+    COOKIES_FILE = "/tmp/youtube_cookies.txt"
+    with open(COOKIES_FILE, "w") as f:
+        f.write(youtube_cookies)
+
 PLATFORM_PATTERNS = {
     "tiktok":    [r"tiktok\.com", r"vm\.tiktok\.com", r"vt\.tiktok\.com"],
     "youtube":   [r"youtube\.com", r"youtu\.be"],
@@ -257,6 +265,10 @@ def download():
         "socket_timeout": 30,
         "retries": 3,
     }
+
+    # Use cookies for YouTube to bypass bot detection
+    if platform == "youtube" and COOKIES_FILE and os.path.exists(COOKIES_FILE):
+        ydl_opts["cookiefile"] = COOKIES_FILE
 
     if quality == "audio":
         ydl_opts["postprocessors"] = [{
