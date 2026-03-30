@@ -247,12 +247,13 @@ def download():
     if quality == "audio":
         format_str = "bestaudio/best"
     elif platform == "youtube":
+        # Use a very broad fallback chain that works for regular videos, Shorts, and age-restricted content
         if quality == "720":
-            format_str = "(bestvideo[height<=720][vcodec^=avc1]+bestaudio[acodec^=mp4a])/(bestvideo[height<=720]+bestaudio)/best[height<=720]/best"
+            format_str = "bestvideo[height<=720]+bestaudio/best[height<=720]/bestvideo[height<=720]/best"
         elif quality == "480":
-            format_str = "(bestvideo[height<=480][vcodec^=avc1]+bestaudio[acodec^=mp4a])/(bestvideo[height<=480]+bestaudio)/best[height<=480]/best"
+            format_str = "bestvideo[height<=480]+bestaudio/best[height<=480]/bestvideo[height<=480]/best"
         else:
-            format_str = "(bestvideo[vcodec^=avc1]+bestaudio[acodec^=mp4a])/(bestvideo+bestaudio)/best"
+            format_str = "bestvideo+bestaudio/best/bestvideo/bestaudio"
     else:
         if quality == "720":
             format_str = "bestvideo[height<=720]+bestaudio/best[height<=720]/best"
