@@ -243,17 +243,23 @@ def download():
     job_id   = str(uuid.uuid4())[:8]
     out_template = os.path.join(DOWNLOAD_DIR, f"{job_id}_%(title).60s.%(ext)s")
 
-    # TikTok needs a more flexible format string
-    if platform == "tiktok":
-        format_str = "bestvideo+bestaudio/best"
-    elif quality == "720":
-        format_str = "bestvideo[height<=720]+bestaudio/best[height<=720]/best"
-    elif quality == "480":
-        format_str = "bestvideo[height<=480]+bestaudio/best[height<=480]/best"
-    elif quality == "audio":
+    # Platform-aware format selection
+    if quality == "audio":
         format_str = "bestaudio/best"
+    elif platform == "youtube":
+        if quality == "720":
+            format_str = "bestvideo[height<=720]+bestaudio/bestvideo[height<=720]/best[height<=720]/best"
+        elif quality == "480":
+            format_str = "bestvideo[height<=480]+bestaudio/bestvideo[height<=480]/best[height<=480]/best"
+        else:
+            format_str = "bestvideo+bestaudio/bestvideo/best"
     else:
-        format_str = "bestvideo+bestaudio/best"
+        if quality == "720":
+            format_str = "bestvideo[height<=720]+bestaudio/best[height<=720]/best"
+        elif quality == "480":
+            format_str = "bestvideo[height<=480]+bestaudio/best[height<=480]/best"
+        else:
+            format_str = "bestvideo+bestaudio/best"
 
     ydl_opts = {
         "format": format_str,
