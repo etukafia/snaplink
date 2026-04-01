@@ -1,6 +1,7 @@
 import os
 import re
 import uuid
+import zipfile
 import threading
 import time
 import json
@@ -230,6 +231,193 @@ def promote_user(username):
         flash(f"{username} promoted to admin.", "success")
     return redirect(url_for("admin"))
 
+def build_ydl_opts(platform, quality, out_template):
+    """Build yt-dlp options with universal H.264/AAC compatibility."""
+    # H.264 + AAC is universally compatible — plays on TikTok, WhatsApp, iPhone, Android
+    h264_aac = (
+        "bestvideo[vcodec^=avc1]+bestaudio[acodec^=mp4a]"
+        "/bestvideo[vcodec^=avc1]+bestaudio"
+        "/bestvideo+bestaudio[acodec^=mp4a]"
+        "/bestvideo+bestaudio"
+        "/best"
+    )
+
+    if quality == "audio":
+        format_str = "bestaudio/best"
+    elif quality == "720":
+        format_str = (
+            "bestvideo[height<=720][vcodec^=avc1]+bestaudio[acodec^=mp4a]"
+            "/bestvideo[height<=720][vcodec^=avc1]+bestaudio"
+            "/bestvideo[height<=720]+bestaudio"
+            "/best[height<=720]/best"
+        )
+    elif quality == "480":
+        format_str = (
+            "bestvideo[height<=480][vcodec^=avc1]+bestaudio[acodec^=mp4a]"
+            "/bestvideo[height<=480][vcodec^=avc1]+bestaudio"
+            "/bestvideo[height<=480]+bestaudio"
+            "/best[height<=480]/best"
+        )
+    else:
+        format_str = h264_aac
+
+    opts = {
+        "format": format_str,
+        "outtmpl": out_template,
+        "quiet": True,
+        "no_warnings": True,
+        "socket_timeout": 30,
+        "retries": 3,
+        "merge_output_format": "mp4",
+        # Re-encode to H.264/AAC for universal compatibility
+        "postprocessors": [{
+            "key": "FFmpegVideoConvertor",
+            "preferedformat": "mp4",
+        }],
+        "postprocessor_args": {
+            "ffmpeg": [
+                "-vcodec", "libx264",
+                "-acodec", "aac",
+                "-movflags", "+faststart",
+            ]
+        },
+    }
+
+    if quality == "audio":
+        opts["postprocessors"] = [{
+            "key": "FFmpegExtractAudio",
+            "preferredcodec": "mp3",
+            "preferredquality": "192",
+        }]
+        del opts["postprocessor_args"]
+
+    if platform == "youtube" and COOKIES_FILE and os.path.exists(COOKIES_FILE):
+        opts["cookiefile"] = COOKIES_FILE
+
+    return opts
+
+
+def is_playlist(url):
+    """Detect if a URL is a playlist."""
+    playlist_patterns = [
+        r"youtube\.com/playlist",
+        r"youtube\.com/.*[?&]list=",
+        r"tiktok\.com/@.+/playlist",
+    ]
+    return any(re.search(p, url, re.IGNORECASE) for p in playlist_patterns)
+
+
+# In-memory playlist job store
+playlist_jobs = {}
+
+
+@app.route("/api/playlist/info", methods=["POST"])
+@login_required
+def playlist_info():
+    """Fetch playlist metadata without downloading."""
+    data = request.get_json()
+    url  = data.get("url", "").strip()
+    if not url:
+        return jsonify({"error": "No URL provided."}), 400
+
+    ydl_opts = {
+        "quiet": True,
+        "no_warnings": True,
+        "extract_flat": True,
+        "socket_timeout": 20,
+    }
+    platform = detect_platform(url)
+    if platform == "youtube" and COOKIES_FILE and os.path.exists(COOKIES_FILE):
+        ydl_opts["cookiefile"] = COOKIES_FILE
+
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+        entries = info.get("entries", [])
+        return jsonify({
+            "title": info.get("title", "Playlist"),
+            "count": len(entries),
+            "entries": [{"title": e.get("title", f"Video {i+1}"), "id": e.get("id", "")}
+                        for i, e in enumerate(entries[:200])],
+        })
+    except Exception as e:
+        return jsonify({"error": f"Could not fetch playlist: {str(e)[:200]}"}), 500
+
+
+@app.route("/api/playlist/download", methods=["POST"])
+@login_required
+def playlist_download():
+    """Download a batch of playlist videos and return as ZIP."""
+    data      = request.get_json()
+    url       = data.get("url", "").strip()
+    quality   = data.get("quality", "best")
+    start     = int(data.get("start", 0))   # index to start from
+    count     = int(data.get("count", 10))  # how many to download
+    delivery  = data.get("delivery", "zip") # "zip" or "individual"
+
+    if not url:
+        return jsonify({"error": "No URL provided."}), 400
+
+    platform = detect_platform(url)
+    job_id   = str(uuid.uuid4())[:8]
+    batch_dir = os.path.join(DOWNLOAD_DIR, job_id)
+    os.makedirs(batch_dir, exist_ok=True)
+
+    out_template = os.path.join(batch_dir, "%(playlist_index)s_%(title).50s.%(ext)s")
+
+    opts = build_ydl_opts(platform, quality, out_template)
+    opts["noplaylist"] = False
+    opts["playliststart"] = start + 1       # yt-dlp is 1-indexed
+    opts["playlistend"]   = start + count
+
+    try:
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+
+        files = sorted([
+            os.path.join(batch_dir, f)
+            for f in os.listdir(batch_dir)
+            if os.path.isfile(os.path.join(batch_dir, f))
+        ])
+
+        if not files:
+            return jsonify({"error": "No videos were downloaded from the playlist."}), 500
+
+        # Update download count
+        db = load_db()
+        uname = session.get("username")
+        if uname and uname in db["users"]:
+            db["users"][uname]["download_count"] = db["users"][uname].get("download_count", 0) + len(files)
+            save_db(db)
+
+        if delivery == "zip":
+            playlist_title = info.get("title", "playlist") if info else "playlist"
+            safe_title = re.sub(r'[^\w\s\-]', '', playlist_title).strip()[:40]
+            zip_path = os.path.join(DOWNLOAD_DIR, f"{job_id}_videos_{start+1}-{start+len(files)}.zip")
+            with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+                for fpath in files:
+                    zf.write(fpath, os.path.basename(fpath))
+            return send_file(
+                zip_path,
+                as_attachment=True,
+                download_name=f"{safe_title}_videos_{start+1}-{start+len(files)}.zip",
+                mimetype="application/zip"
+            )
+        else:
+            # Return info so frontend can trigger individual downloads
+            return jsonify({
+                "files": [os.path.basename(f) for f in files],
+                "job_id": job_id,
+                "downloaded": len(files),
+            })
+
+    except yt_dlp.utils.DownloadError as e:
+        msg = str(e)
+        return jsonify({"error": f"Playlist download failed: {msg[:200]}"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Unexpected error: {str(e)[:200]}"}), 500
+
+
 @app.route("/api/download", methods=["POST"])
 @login_required
 def download():
@@ -239,60 +427,15 @@ def download():
     if not url:
         return jsonify({"error": "No URL provided."}), 400
 
-    platform = detect_platform(url)
-    job_id   = str(uuid.uuid4())[:8]
+    platform     = detect_platform(url)
+    job_id       = str(uuid.uuid4())[:8]
     out_template = os.path.join(DOWNLOAD_DIR, f"{job_id}_%(title).60s.%(ext)s")
 
-    # Platform-aware format selection
-    if quality == "audio":
-        format_str = "bestaudio/best"
-    elif platform == "youtube":
-        # Use a very broad fallback chain that works for regular videos, Shorts, and age-restricted content
-        if quality == "720":
-            format_str = "bestvideo[height<=720]+bestaudio/best[height<=720]/bestvideo[height<=720]/best"
-        elif quality == "480":
-            format_str = "bestvideo[height<=480]+bestaudio/best[height<=480]/bestvideo[height<=480]/best"
-        else:
-            format_str = "bestvideo+bestaudio/best/bestvideo/bestaudio"
-    else:
-        if quality == "720":
-            format_str = "bestvideo[height<=720]+bestaudio/best[height<=720]/best"
-        elif quality == "480":
-            format_str = "bestvideo[height<=480]+bestaudio/best[height<=480]/best"
-        else:
-            format_str = "bestvideo+bestaudio/best"
-
-    ydl_opts = {
-        "format": format_str,
-        "outtmpl": out_template,
-        "noplaylist": True,
-        "quiet": True,
-        "no_warnings": True,
-        "socket_timeout": 30,
-        "retries": 3,
-    }
-
-    # YouTube-specific settings
-    if platform == "youtube":
-        ydl_opts["merge_output_format"] = "mp4"
-        ydl_opts["postprocessors"] = [{
-            "key": "FFmpegVideoConvertor",
-            "preferedformat": "mp4",
-        }]
-        if COOKIES_FILE and os.path.exists(COOKIES_FILE):
-            ydl_opts["cookiefile"] = COOKIES_FILE
-    else:
-        ydl_opts["merge_output_format"] = "mp4"
-
-    if quality == "audio":
-        ydl_opts["postprocessors"] = [{
-            "key": "FFmpegExtractAudio",
-            "preferredcodec": "mp3",
-            "preferredquality": "192",
-        }]
+    opts = build_ydl_opts(platform, quality, out_template)
+    opts["noplaylist"] = True
 
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(url, download=True)
             if "entries" in info:
                 info = info["entries"][0]
@@ -301,8 +444,9 @@ def download():
 
         downloaded = None
         for fname in os.listdir(DOWNLOAD_DIR):
-            if fname.startswith(job_id):
-                downloaded = os.path.join(DOWNLOAD_DIR, fname)
+            fpath = os.path.join(DOWNLOAD_DIR, fname)
+            if fname.startswith(job_id) and os.path.isfile(fpath):
+                downloaded = fpath
                 break
 
         if not downloaded or not os.path.exists(downloaded):
@@ -331,7 +475,7 @@ def download():
         if "Unsupported URL" in msg:
             return jsonify({"error": "This URL is not supported."}), 400
         if "not available" in msg.lower() or "format" in msg.lower():
-            return jsonify({"error": "This format is not available for that video. Try a different quality setting."}), 400
+            return jsonify({"error": "Format not available. Try a different quality setting."}), 400
         return jsonify({"error": f"Download failed: {msg[:200]}"}), 500
     except Exception as e:
         return jsonify({"error": f"Unexpected error: {str(e)[:200]}"}), 500
